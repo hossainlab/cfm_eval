@@ -1,14 +1,14 @@
 # cfm_eval — zero-shot evaluation of single-cell foundation models on tumours
 
-Environment: python 3.11, scanpy, scikit-learn, anndata, leidenalg, python-igraph, harmonypy
-(optional: scvi-tools, scgpt, geneformer, infercnvpy). On macOS set `export NUMBA_CACHE_DIR=/tmp/nb`.
+Single-cell foundation models such as scGPT, Geneformer and UCE are pretrained on millions of cells and are often claimed to produce cell embeddings that capture biology out of the box. This project asks whether that holds in cancer. Without any fine-tuning, do these embeddings distinguish malignant from non-malignant cells better than cheap baselines, and do they generalise to patients and cancer types they have never seen?
 
-1. Standardise each dataset -> `cfm_eval.data.standardise(...)`, `qc(...)`, write `data/std/<name>.h5ad` (raw counts in X).
-2. Subsample once with `subsample_per_patient`, write the cell list, and compute FM embeddings ON THAT LIST:
-   save `cache/emb/<name>__scgpt.npy` and `cache/emb/<name>__scgpt.obs_names.txt`.
-3. `PYTHONPATH=. python run_benchmark.py --h5ad data/std/*.h5ad --emb-dir cache/emb --out results/`
-4. Outputs: `results/summary.csv` (one row per dataset x embedding), `results/per_patient.csv` (LOPO probe per patient).
+Each foundation-model embedding is compared against HVG + PCA, scVI and Harmony, and against a random-projection negative control. The comparison runs on curated tumour scRNA-seq datasets from the Curated Cancer Cell Atlas (3CA). Four tasks are evaluated:
 
-Smoke test: `PYTHONPATH=. python test/make_synth.py && PYTHONPATH=. python run_benchmark.py --h5ad test/synth.h5ad --out test/results`
-Tested here: data.py, baselines.py (hvg_pca, harmony, random_projection), metrics.py, run_benchmark.py.
-NOT tested here (no weights downloaded): embed_fm.py (scGPT, Geneformer), baselines.scvi_latent.
+- **Unsupervised separation:** whether malignant and normal cells separate without labels.
+- **Cross-patient generalisation:** a linear probe that is tested on a held-out patient.
+- **Cross-cancer transfer:** a linear probe that is tested on a held-out cancer type.
+- **Patient structure:** checks that patient batch effects are removed from normal cells without erasing the patient-specific signal of malignant cells, which carry distinct genomes.
+
+The patient, not the cell, is the unit of replication throughout. Confidence intervals come from resampling patients, and models are compared with paired tests across held-out patients.
+
+The full research design, including hypotheses, data selection, labels, statistics and pitfalls, is in [`docs/implementation_guide.md`](docs/implementation_guide.md). External data, models and tools are listed in [`data/data_sources.csv`](data/data_sources.csv).
