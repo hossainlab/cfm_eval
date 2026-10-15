@@ -30,9 +30,8 @@ def harmony(adata, base_key="X_hvg_pca", batch="patient", key="X_harmony"):
 def random_projection(adata, dim=512, seed=0, key="X_randproj"):
     """Negative control: random linear map of log-normalised expression."""
     a = _lognorm(adata)
-    X = a.X.toarray() if hasattr(a.X, "toarray") else np.asarray(a.X)
-    R = np.random.default_rng(seed).normal(size=(X.shape[1], dim)) / np.sqrt(dim)
-    adata.obsm[key] = X @ R
+    R = np.random.default_rng(seed).normal(size=(a.n_vars, dim)) / np.sqrt(dim)
+    adata.obsm[key] = np.asarray(a.X @ R)  # sparse @ dense: never densify the cell x gene matrix
     return key
 
 def scvi_latent(adata, n_latent=30, max_epochs=100, key="X_scvi", batch=None):

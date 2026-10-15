@@ -60,3 +60,7 @@ test/synth.h5ad
 # Logs
 *.log
 nohup.out
+
+# run outputs and logs (results_baseline/ is tracked on purpose)
+logs/
+test/results*/
