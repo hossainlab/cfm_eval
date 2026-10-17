@@ -1,5 +1,7 @@
 # cfm_eval — zero-shot evaluation of single-cell foundation models on tumours
 
+![Graphical abstract: benchmark design and key findings](results/figures/graphical_abstract.png)
+
 ## Install
 Managed with [uv](https://docs.astral.sh/uv/): `uv sync` (Python 3.11, versions locked in `uv.lock`; extras `--extra scvi`, `--extra cnv`).
 scGPT, Geneformer and UCE pin old torch stacks and are not in this environment: run `scripts/embed_fm.py` in a separate
@@ -54,9 +56,10 @@ for t in ready matched t3; do for r in hvg_pca randproj scgpt_random; do
   uv run python scripts/compare.py results/$t/per_patient.csv --ref X_$r --out results/$t/compare_vs_$r.csv
 done; done
 uv run python scripts/make_figures.py --results results --out results/figures
+uv run python scripts/make_graphical_abstract.py --results results --out results/figures   # PNG/PDF need Chrome
 ```
 Tracked in git: `results/{ready,matched,t3}/` (`summary.csv`, `per_patient.csv`, `compare_vs_*.csv`) and `results/figures/`
-(fig1/fig2/figS1 as PDF + PNG, `captions.txt`). Not tracked: `data/`, `cache/emb/` (FM embeddings, ~3.8 GB), logs.
+(fig1/fig2/figS1 and the graphical abstract as PDF + PNG, `captions.txt`). Not tracked: `data/`, `cache/emb/` (FM embeddings, ~3.8 GB), logs.
 
 Smoke test on synthetic data (expected values in `docs/implementation_guide.md` §7, e.g. HVG+PCA LOPO AUROC ≈ 0.959):
 ```
