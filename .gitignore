@@ -36,7 +36,12 @@ data/*
 cache/
 models/
 checkpoints/
-results/
+# final results (CSVs + figures) are tracked; everything else under results/ is not
+results/*
+!results/ready/
+!results/matched/
+!results/t3/
+!results/figures/
 test/results/
 test/synth.h5ad
 *.pt
@@ -61,6 +66,6 @@ test/synth.h5ad
 *.log
 nohup.out
 
-# run outputs and logs (results_baseline/ is tracked on purpose)
+# run outputs and logs
 logs/
 test/results*/

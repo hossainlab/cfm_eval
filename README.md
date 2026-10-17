@@ -1,7 +1,9 @@
 # cfm_eval — zero-shot evaluation of single-cell foundation models on tumours
 
 ## Install
-Python 3.11: scanpy, scikit-learn, anndata, leidenalg, python-igraph, harmonypy, openpyxl (optional: scvi-tools, scgpt, geneformer).
+Managed with [uv](https://docs.astral.sh/uv/): `uv sync` (Python 3.11, versions locked in `uv.lock`; extras `--extra scvi`, `--extra cnv`).
+scGPT, Geneformer and UCE pin old torch stacks and are not in this environment: run `scripts/embed_fm.py` in a separate
+FM environment and copy the cached `.npy` files into `cache/emb/`.
 macOS: `export NUMBA_CACHE_DIR=/tmp/nb` before running (numba cache fix).
 
 ## Data (7 datasets, 6 cancer types; benchmark-ready files ship separately as cfm_eval_data_ready.tar)
@@ -23,28 +25,49 @@ Pretraining-leakage grouping: CELLxGENE datasets = "possibly seen" by scGPT/Gene
 
 ## Rebuild from scratch
 ```
-PYTHONPATH=. python scripts/prepare_data.py --download --raw data/raw --std data/std --ready data/ready     # ~3.2 GB download, ~10 min processing
-PYTHONPATH=. python scripts/prepare_matched.py --std data/std --out data/ready_matched
+uv run python scripts/prepare_data.py --download --raw data/raw --std data/std --ready data/ready     # ~3.2 GB download, ~10 min processing
+uv run python scripts/prepare_matched.py --std data/std --out data/ready_matched
 ```
 `data/std` = full standardised objects; `data/ready` = eligible patients, ≤1,000 cells per patient × class;
 `data/ready_matched` = HARD task, malignant vs same-lineage normal only (FL: B cells; GBM: astrocyte/OPC/oligodendrocyte;
 breast: mesothelial; CRLM: cholangiocyte/hepatocyte). Read with `cfm_eval.data.read_std()` (restores layers['counts']).
 
-## Run the benchmark
+## Reproduce the results
+Commands that produced `results/` (seeds 0–2; label noise 0/5/10/20 %; full, 50-shot and 10-shot probes):
 ```
-PYTHONPATH=. python scripts/run_benchmark.py --h5ad "data/ready/*.h5ad" --emb-dir cache/emb --out results/
-PYTHONPATH=. python scripts/run_benchmark.py --h5ad "data/ready_matched/*.h5ad" --out results_matched/ --min-malignant 20 --min-normal 20
-```
-FM embeddings: compute on the cells of the ready file, save `cache/emb/<dataset>__<model>.npy` + `.obs_names.txt`.
+# 1. FM embeddings, in the FM environment (one run per model; union of ready + matched cells per dataset)
+scripts/embed_all.sh <fm-python> scgpt      <scGPT_human dir>
+scripts/embed_all.sh <fm-python> scgpt      <random-weight dir> scgpt_random   # dir from cfm_eval.embed_fm.make_random_scgpt
+scripts/embed_all.sh <fm-python> geneformer <Geneformer dir>
+scripts/embed_all.sh <fm-python> uce        <UCE repo clone with model_files/>
 
-## Baseline results already computed (results_baseline/)
-HVG+PCA, random projection and Harmony on all 7 ready sets and the 4 matched sets. Key observation:
-leave-one-patient-out AUROC for malignant vs ALL normal cells is 0.96–1.00 for every embedding, including the random-projection
-negative control — this task is at ceiling and cannot rank foundation models. Lineage-matched sets are harder for unsupervised
-separation (e.g. follicular lymphoma: Leiden ARI 0.94 HVG+PCA vs 0.00 random projection) but linear probes remain ≥0.90.
-Rank models on unsupervised metrics, the matched task, and harder settings (few-shot probes, cross-dataset transfer) rather than
-on all-normal probe AUROC.
+# 2. Benchmark (T1, T2, T4) and cross-cancer transfer (T3)
+FM="--fm scgpt scgpt_random geneformer uce"
+uv run python scripts/run_benchmark.py --h5ad data/ready/*.h5ad --out results/ready \
+    --seeds 0 1 2 --label-noise 0 0.05 0.1 0.2 --n-train 10 50 $FM
+uv run python scripts/run_benchmark.py --h5ad data/ready_matched/*.h5ad --out results/matched \
+    --seeds 0 1 2 --label-noise 0 0.05 0.1 0.2 --n-train 10 50 --min-malignant 20 --min-normal 20 $FM
+uv run python scripts/run_cross_cancer.py --h5ad "data/ready/*.h5ad" --out results/t3 --seeds 0 1 2 $FM
+
+# 3. Paired comparisons (Wilcoxon across held-out patients, Holm) and figures
+for t in ready matched t3; do for r in hvg_pca randproj scgpt_random; do
+  uv run python scripts/compare.py results/$t/per_patient.csv --ref X_$r --out results/$t/compare_vs_$r.csv
+done; done
+uv run python scripts/make_figures.py --results results --out results/figures
+```
+Tracked in git: `results/{ready,matched,t3}/` (`summary.csv`, `per_patient.csv`, `compare_vs_*.csv`) and `results/figures/`
+(fig1/fig2/figS1 as PDF + PNG, `captions.txt`). Not tracked: `data/`, `cache/emb/` (FM embeddings, ~3.8 GB), logs.
+
+Smoke test on synthetic data (expected values in `docs/implementation_guide.md` §7, e.g. HVG+PCA LOPO AUROC ≈ 0.959):
+```
+uv run python test/make_synth.py && uv run python scripts/run_benchmark.py --h5ad test/synth.h5ad --out test/results
+```
+
+## Findings so far
+See `docs/knowledge_base/07_project_map.md` §7.5. The full malignant-vs-all-normal probe is at ceiling (≈ 0.99 for every
+embedding, including the random-projection control), so models are ranked on unsupervised metrics, few-shot probes, the
+lineage-matched task and cross-cancer transfer.
 
 ## Tested vs untested
-Tested here on real data: loaders.py (all 4 GEO + CELLxGENE), data.py, baselines.py (hvg_pca, harmony, random_projection),
-metrics.py, run_benchmark.py, prepare_data.py, prepare_matched.py. NOT tested: embed_fm.py (scGPT, Geneformer), scvi_latent.
+Run on real data: loaders.py (all 4 GEO + CELLxGENE), data.py, baselines.py (hvg_pca, harmony, random_projection), metrics.py,
+embed_fm.py (scGPT, random-weight scGPT, Geneformer, UCE), and every script in `scripts/`. Not tested: `baselines.scvi_latent`.

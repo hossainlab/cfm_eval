@@ -1,5 +1,5 @@
 """T3 cross-cancer transfer: pool datasets, train the probe on all cancer types but one, test on the held-out type.
-   python scripts/run_cross_cancer.py --h5ad "data/ready/*.h5ad" --emb-dir cache/emb --out results_t3/ [--seeds 0 1 2]
+   python scripts/run_cross_cancer.py --h5ad "data/ready/*.h5ad" --emb-dir cache/emb --out results/t3 [--seeds 0 1 2]
 Baselines are fitted on the pooled cells (shared genes only); FM embeddings are loaded per dataset and stacked,
 and an FM is used only if every dataset has a cache for it. Each cancer type is one dataset here, so held-out
 cancer is confounded with study and technology: report T3 as leave-one-dataset-out.
@@ -43,7 +43,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--h5ad", nargs="+", required=True)
     ap.add_argument("--emb-dir", default="cache/emb")
-    ap.add_argument("--out", default="results_t3")
+    ap.add_argument("--out", default="results/t3")
     ap.add_argument("--fm", nargs="*", default=["scgpt", "geneformer", "uce"])
     ap.add_argument("--max-cells-per-patient", type=int, default=2000)
     ap.add_argument("--seeds", type=int, nargs="+", default=[0])
