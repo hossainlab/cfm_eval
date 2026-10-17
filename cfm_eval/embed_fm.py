@@ -100,6 +100,36 @@ def geneformer_embed(adata, model_dir, workdir, emb_layer=-1, batch_size=8, devi
             E[np.asarray(b["cell_idx"])] = h[:, 0].float().cpu().numpy()
     return E
 
+def uce_embed(adata, repo_dir, workdir, model_file="model_files/4layer_model.torch", nlayers=4,
+              batch_size=25, seed=0):
+    """UCE (snap-stanford/UCE) via its own eval_single_anndata.py, run in-process with fixed seeds: UCE samples
+    1,024 genes per cell (weighted by expression, with replacement) and shuffles chromosome order. Its optional
+    gene/cell filter is disabled so that no benchmark cell is dropped. accelerate picks MPS/CUDA/CPU itself."""
+    import os, runpy, shutil, sys, torch
+    import anndata as ad
+    repo = Path(repo_dir).resolve(); w = Path(workdir).resolve()
+    shutil.rmtree(w, ignore_errors=True); w.mkdir(parents=True)
+    a = ad.AnnData(adata.layers["counts"].copy(), obs=pd.DataFrame(index=adata.obs_names),
+                   var=pd.DataFrame(index=adata.var_names))
+    a.write_h5ad(w / "cells.h5ad")
+    argv = ["eval_single_anndata.py", "--adata_path", str(w / "cells.h5ad"), "--dir", str(w) + "/",
+            "--species", "human", "--model_loc", str(repo / model_file), "--nlayers", str(nlayers),
+            "--batch_size", str(batch_size), "--filter", "", "--skip", "",  # argparse type=bool: "" -> False
+            "--spec_chrom_csv_path", str(repo / "model_files/species_chrom.csv"),
+            "--token_file", str(repo / "model_files/all_tokens.torch"),
+            "--protein_embeddings_dir", str(repo / "model_files/protein_embeddings/"),
+            "--offset_pkl_path", str(repo / "model_files/species_offsets.pkl")]
+    cwd, old_argv = os.getcwd(), sys.argv
+    try:
+        os.chdir(repo); sys.path.insert(0, str(repo)); sys.argv = argv
+        np.random.seed(seed); torch.manual_seed(seed)
+        runpy.run_path(str(repo / "eval_single_anndata.py"), run_name="__main__")
+    finally:
+        os.chdir(cwd); sys.argv = old_argv
+    out = ad.read_h5ad(w / "cells_uce_adata.h5ad")
+    assert list(out.obs_names) == list(adata.obs_names), "UCE dropped or reordered cells"
+    return np.asarray(out.obsm["X_uce"])
+
 def _scgpt_model(model_dir):
     """The TransformerModel exactly as scgpt.tasks.embed_data builds it (use_fast_transformer=False)."""
     import json

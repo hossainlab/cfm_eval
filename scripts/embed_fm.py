@@ -1,5 +1,6 @@
 """Compute and cache foundation-model embeddings. Run in the FM environment (scGPT/Geneformer pin old torch).
    python scripts/embed_fm.py --model scgpt --model-dir weights/scGPT_human \
+       (--model uce --model-dir <UCE repo clone with model_files/>)
        --h5ad data/ready/cxg_gbm_darmanis.h5ad data/ready_matched/cxg_gbm_darmanis.h5ad [--max-cells 1000]
 All --h5ad files must share a stem (one dataset); the union of their cells is embedded once and saved as
 cache/emb/<dataset>__<model>.npy + .obs_names.txt, which serves both the ready and the lineage-matched task.
@@ -20,7 +21,7 @@ from cfm_eval import embed_fm
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, choices=["scgpt", "geneformer"])
+    ap.add_argument("--model", required=True, choices=["scgpt", "geneformer", "uce"])
     ap.add_argument("--model-dir", required=True)
     ap.add_argument("--name", default=None)
     ap.add_argument("--h5ad", nargs="+", required=True)
@@ -57,6 +58,8 @@ def main():
         print(f"  scGPT vocab match (feature_name): {embed_fm.gene_match(a, vocab, 'feature_name'):.3f}; "
               f"checkpoint fills {cov:.3f} of parameters (only the unused cls_decoder should be missing)")
         E = embed_fm.scgpt_embed(a, args.model_dir, batch_size=args.batch_size, device=args.device)
+    elif args.model == "uce":
+        E = embed_fm.uce_embed(a, args.model_dir, args.workdir, batch_size=args.batch_size)
     else:
         print(f"  genes with Ensembl ID: {a.var['ensembl_id'].notna().mean():.3f}")
         E = embed_fm.geneformer_embed(a, args.model_dir, args.workdir, batch_size=args.batch_size, device=args.device)
