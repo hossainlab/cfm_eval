@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Environments and secrets
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Claude Code local files
+.claude/settings.local.json
+CLAUDE.md
+
+# Data: keep the curated source list, ignore everything downloaded or derived
+data/*
+!data/data_sources.csv
+
+# Cached embeddings, model weights and run outputs
+cache/
+models/
+checkpoints/
+# final results (CSVs + figures) are tracked; everything else under results/ is not
+results/*
+!results/ready/
+!results/matched/
+!results/t3/
+!results/figures/
+test/results/
+test/synth.h5ad
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+
+# Large data formats anywhere in the repo
+*.h5ad
+*.h5
+*.loom
+*.mtx
+*.mtx.gz
+*.npy
+*.npz
+*.rds
+*.RDS
+*.zip
+*.tar.gz
+
+# Logs
+*.log
+nohup.out
+
+# run outputs and logs
+logs/
+test/results*/

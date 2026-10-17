@@ -1,0 +1,13 @@
+Figure 1. Zero-shot single-cell foundation-model embeddings versus baselines on 7 tumour scRNA-seq datasets.
+(a) Held-out-patient AUROC of a standardised logistic-regression probe trained on 10 cells per class from the training patients (leave-one-patient-out), malignant vs all non-malignant cells (ready set; 76 patients, 7 datasets). Each point is one held-out patient (mean of seeds 0-2); bar and number = median; no label noise.
+(b) As (a) for the lineage-matched task, malignant vs same-lineage normal cells (28 patients, 4 datasets).
+(c) Mean 10-shot AUROC across ready-set datasets (seeds averaged) as a fraction of training labels is flipped (0, 5, 10, 20%).
+(d) Cross-cancer transfer (T3): probe trained on six cancer types and evaluated on the held-out type; pooled-cell AUROC, mean of 3 seeds. Each cancer type is a single study, so held-out cancer is confounded with study and platform.
+(e) Patient structure (T4), ready set, mean over datasets and seeds: excess of same-patient k-nearest neighbours over chance for normal cells (x; lower = less patient batch effect) and malignant cells (y; higher = patient-specific tumour structure retained). Reported separately because malignant cells carry patient-specific genomes.
+HVG + PCA, 50 PCs of 2,000 highly variable genes; Random projection, 512-d Gaussian projection of log-normalised expression (label-free negative control); scGPT, random wts, scGPT architecture with re-initialised weights (negative control for pretraining). *Harmony uses patient labels and is therefore not label-free. Grey = baselines, colour = foundation models.
+
+Figure 2. Paired comparisons across held-out patients.
+Mean paired AUROC difference (row embedding minus reference) across held-out patients, pooled over datasets (or held-out cancers for T3); bars, patient-bootstrap 95% CI. *, Holm-adjusted two-sided paired Wilcoxon p < 0.05 (Holm within each probe x reference family). Top, reference HVG + PCA; bottom, reference random projection. Panels: ready and matched sets with the 10-shot and full (all training cells) probes, and cross-cancer transfer (T3). Positive values favour the row embedding. Axes differ between panels.
+
+Supplementary Figure S1. Per-dataset results (ready set, mean of seeds 0-2, no label noise).
+(a) 10-shot leave-one-patient-out AUROC. (b) Adjusted Rand index between Leiden clusters (unsupervised) and the malignant label.
